@@ -1,0 +1,32 @@
+{{define "title"}}Editar Usuario | Biblioteca PUCE{{end}}
+
+{{define "content"}}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm p-4">
+                <h2 class="card-title text-center mb-4">✏️ Editar Usuario</h2>
+                <p class="text-center text-muted mb-4">Modifica los detalles del usuario seleccionado.</p>
+                <form action="/editar-persona" method="POST">
+                    <input type="hidden" name="cedula" value="{{.Detalle.Cedula}}"> {{/* Usamos cédula como identificador para POST */}}
+
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre del Usuario</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" value="{{.Detalle.Nombre}}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="ano" class="form-label">Año de Nacimiento</label>
+                        <input type="text" class="form-control" id="ano" name="ano" value="{{.Detalle.Ano}}" required>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">Guardar Cambios</button>
+                        <a href="/personas" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}

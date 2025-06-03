@@ -1,0 +1,17 @@
+{{define "title"}}Devoluciones | Biblioteca PUCE{{end}}
+
+{{define "content"}}
+<h2 class="mb-4 text-center">Registrar Devolución</h2>
+
+<form method="POST" action="/devoluciones" class="mx-auto" style="max-width: 600px;">
+  <div class="mb-3">
+    <label for="usuario" class="form-label">Nombre del Usuario</label>
+    <input type="text" class="form-control" id="usuario" name="usuario" required>
+  </div>
+  <div class="mb-3">
+    <label for="libro" class="form-label">Nombre del Libro</label>
+    <input type="text" class="form-control" id="libro" name="libro" required>
+  </div>
+  <button type="submit" class="btn btn-success">Registrar Devolución</button>
+</form>
+{{end}}

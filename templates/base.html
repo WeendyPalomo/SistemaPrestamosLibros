@@ -2,99 +2,198 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>{{block "title" .}}Biblioteca PUCE{{end}}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body {
-      background-color: #f2f4f8;
-    }
+    <meta charset="UTF-8">
+    <title>{{block "title" .}}Biblioteca PUCE{{end}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" xintegrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        html, body {
+            height: 100%; /* Asegura que html y body ocupen el 100% de la altura de la ventana */
+        }
 
-    header {
-      background-image: url("/static/descargar (9).jpeg");
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      background-attachment: fixed;
-    }
+        body {
+            background-color: #f8f9fa; /* Un color de fondo más claro para el cuerpo */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex; /* Habilita Flexbox en el body */
+            flex-direction: column; /* Organiza los elementos hijos en una columna */
+        }
 
-    main {
-      background-color: rgba(255, 255, 255, 0.95);
-      border-radius: 12px;
-      padding: 2rem;
-    }
+        /* Estilos para la barra de navegación (header) - CLARA */
+        .navbar-light-custom { /* Nueva clase para el navbar claro */
+            background-color: #ffffff; /* Fondo blanco para la barra de navegación */
+            border-bottom: 1px solid #e0e0e0; /* Un borde sutil en la parte inferior */
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
 
-    .btn-animate {
-      transition: all 0.3s ease-in-out;
-    }
+        .navbar-brand {
+            font-weight: bold;
+            color: #212529 !important; /* Color de texto oscuro para el logo */
+            font-size: 1.5rem;
+        }
 
-    .btn-animate:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
-    }
+        /* Estilos para los enlaces de navegación */
+        .navbar-nav .nav-link {
+            color: #495057 !important; /* Color de texto oscuro para los enlaces de navegación */
+            padding: 0.75rem 1rem;
+            display: flex; /* Para alinear icono y texto verticalmente */
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.9rem;
+            transition: color 0.3s ease; /* Transición suave para el hover */
+            height: 100%; /* Asegura que el enlace ocupe toda la altura disponible */
+            justify-content: center; /* Centra el contenido verticalmente */
+        }
 
-    footer {
-      background-color: #003366;
-      color: white;
-      text-align: center;
-      padding: 1rem;
-      margin-top: 3rem;
-    }
-  </style>
+        .navbar-nav .nav-link:hover {
+            color: #007bff !important; /* Azul al pasar el ratón */
+        }
+
+        .navbar-icons .nav-link i {
+            font-size: 1.2rem; /* Tamaño de los iconos */
+            margin-bottom: 0.25rem; /* Espacio entre icono y texto */
+        }
+
+        /* Estilos para los botones de autenticación */
+        .btn-login-header {
+            background-color: transparent;
+            color: #007bff; /* Azul para el botón de Login */
+            border: 1px solid #007bff;
+            border-radius: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-login-header:hover {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-sign-up-header {
+            background-color: #28a745; /* Verde para el botón de Sign-up */
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-sign-up-header:hover {
+            background-color: #218838;
+        }
+
+        /* Estilos para los enlaces de usuario/rol */
+        .navbar-nav .nav-link.user-info {
+            color: #28a745 !important; /* Verde para el nombre de usuario */
+            font-weight: bold;
+            padding: 0.6rem 1.2rem; /* Ajuste de padding para alineación */
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-nav .nav-link.logout-link {
+            color: #dc3545 !important; /* Rojo para cerrar sesión */
+            font-weight: bold;
+        }
+
+        /* Asegura que los elementos de la lista estén alineados */
+        .navbar-nav .nav-item {
+            display: flex; /* Convierte cada item en un flex container */
+            align-items: center; /* Alinea los elementos hijos verticalmente */
+            height: 100%; /* Asegura que el item ocupe toda la altura */
+        }
+
+
+        /* Estilos para el pie de página */
+        footer {
+            background-color: #343a40; /* Fondo oscuro para el pie de página */
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: auto; /* Empuja el footer hacia abajo */
+        }
+
+        /* Estilos para el contenido principal */
+        main {
+            flex-grow: 1; /* Permite que el contenido principal ocupe el espacio restante */
+            padding: 2rem 0;
+        }
+
+        /* Ajustes para pantallas pequeñas */
+        @media (max-width: 991.98px) {
+            .navbar-nav .nav-link {
+                flex-direction: row; /* Icono y texto en fila en móviles */
+                justify-content: flex-start;
+                padding: 0.5rem 1rem;
+            }
+            .navbar-nav .nav-link i {
+                margin-right: 0.5rem;
+                margin-bottom: 0;
+            }
+            .navbar-collapse {
+                text-align: center; /* Centra los elementos del menú en móviles */
+            }
+            /* Elimina el margen automático para que los elementos se apilen en móviles si es necesario */
+            .navbar-nav.main-nav {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+        }
+    </style>
 </head>
 <body>
+    <nav class="navbar navbar-expand-lg navbar-light-custom shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-book-open me-2"></i>Biblioteca PUCE
+            </a>
 
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
-    <div class="container">
-      <a class="navbar-brand fw-bold" href="/">
-        <img src="/static/book-cartoon-illustration-school-start-reading-reading-book_539915_wh860.png" alt="Logo" width="30" class="me-2">
-        Biblioteca PUCE
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link" href="/">Inicio</a></li>
-          <li class="nav-item"><a class="nav-link" href="/libros">Libros</a></li>
-          <li class="nav-item"><a class="nav-link" href="/prestamos">Registrar Préstamo</a></li>
-          <li class="nav-item"><a class="nav-link" href="/personas">Usuarios</a></li>
-          {{if .Usuario}}
-            <li class="nav-item"><a class="nav-link disabled">👤 {{.Usuario}}</a></li>
-            <li class="nav-item"><a class="nav-link text-danger" href="/logout">Cerrar sesión</a></li>
-          {{else}}
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle text-success" href="#" id="navbarLogin" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                Iniciar sesión
-              </a>
-              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarLogin">
-                <li><a class="dropdown-item" href="/login">Ingresar</a></li>
-                <li><a class="dropdown-item" href="/registrar">Registrarse</a></li>
-              </ul>
-            </li>
-          {{end}}
-        </ul>
-      </div>
-    </div>
-  </nav>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
 
-  <header class="text-white text-center py-5">
-    <div class="container">
-      <h1 class="display-5 fw-bold">Sistema de Préstamos de Libros</h1>
-      <p class="lead">Gestión académica de usuarios, libros y préstamos</p>
-    </div>
-  </header>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto main-nav"> 
+                    <li class="nav-item"><a class="nav-link" href="/"><i class="fas fa-home"></i> Inicio</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/libros"><i class="fas fa-book"></i> Libros</a></li>
+                    
+                    {{if .Usuario}} 
+                    <li class="nav-item"><a class="nav-link" href="/prestamos"><i class="fas fa-handshake"></i> Préstamos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/devoluciones"><i class="fas fa-undo-alt"></i> Devoluciones</a></li>
+                    {{end}}
 
-  <main class="container my-5 shadow">
-    {{block "content" .}}{{end}}
-  </main>
+                    {{if eq .Rol "admin"}}
+                    <li class="nav-item"><a class="nav-link" href="/personas"><i class="fas fa-users"></i> Usuarios</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/registrar-libro"><i class="fas fa-plus-square"></i> Registrar Libro</a></li>
+                    {{end}}
+                </ul>
 
-  <footer>
-    <p class="mb-0">© {{.Año}} Biblioteca PUCE - Proyecto de Integración</p>
-  </footer>
+                <ul class="navbar-nav"> 
+                    {{if .Usuario}}
+                        <li class="nav-item"><a class="nav-link disabled user-info">👤 {{.Usuario}}</a></li>
+                        <li class="nav-item"><a class="btn btn-danger" href="/logout">Cerrar sesión</a></li>
+                    {{else}}
+                        <li class="nav-item"><a href="/login" class="btn btn-login-header me-2">Iniciar Sesion</a></li>
+                        <li class="nav-item"><a href="/registrar" class="btn btn-sign-up-header">Registrarse</a></li>
+                    {{end}}
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <main class="container-fluid p-0"> 
+        {{block "content" .}}{{end}}
+    </main>
+
+    <footer>
+        <p class="mb-0">© {{.Año}} Biblioteca PUCE - Proyecto de Aplicaciones Web</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 {{end}}

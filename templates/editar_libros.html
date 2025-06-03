@@ -1,0 +1,52 @@
+{{define "title"}}Editar Libro | Biblioteca PUCE{{end}}
+
+{{define "content"}}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm p-4">
+                <h2 class="card-title text-center mb-4">✏️ Editar Libro</h2>
+                <p class="text-center text-muted mb-4">Modifica los detalles del libro seleccionado.</p>
+                <form action="/editar-libros" method="POST">
+                    <input type="hidden" name="id" value="{{.Detalle.ID}}">
+
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre del Libro</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" value="{{.Detalle.Nombre}}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="autor" class="form-label">Autor</label>
+                        <input type="text" class="form-control" id="autor" name="autor" value="{{.Detalle.Autor}}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="ano" class="form-label">Año de Publicación</label>
+                        <input type="number" class="form-control" id="ano" name="ano" value="{{.Detalle.Ano}}" required min="1000" max="{{.Año}}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3" required>{{.Detalle.Descripcion}}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="imagen" class="form-label">URL de la Imagen</label>
+                        <input type="url" class="form-control" id="imagen" name="imagen" value="{{.Detalle.ImagenURL}}" placeholder="https://example.com/portada.jpg" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="copias" class="form-label">Número de Copias</label>
+                        <input type="number" class="form-control" id="copias" name="copias" value="{{.Detalle.Copias}}" required min="0">
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">Guardar Cambios</button>
+                        <a href="/libros" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}

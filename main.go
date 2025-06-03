@@ -1,61 +1,33 @@
-
-// ======= main.go =======
 package main
 
 import (
 	"html/template"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 )
 
-type Libro struct {
-	ID          int
-	Nombre      string
-	Autor       string
-	Ano         int
-	Descripcion string
-	ImagenURL   string
-}
-
-var libros = []Libro{
-	{ID: 1, Nombre: "Cien Años de Soledad", Autor: "Gabriel García Márquez", Ano: 1967, Descripcion: "Una novela sobre la familia Buendía.", ImagenURL: "/static/images.jpeg"},
-	{ID: 2, Nombre: "Don Quijote de la Mancha", Autor: "Miguel de Cervantes", Ano: 1605, Descripcion: "Una historia de aventuras y locura.", ImagenURL: "/static/Don_Quijote_de_la_Mancha-Cervantes_Miguel-lg.png"},
-	{ID: 3, Nombre: "La sombra del viento", Autor: "Carlos Ruiz Zafón", Ano: 2001, Descripcion: "Misterio y literatura en la Barcelona de posguerra.", ImagenURL: "/static/47856_portada___201609051317.jpg"},
-}
-
-type DatosPagina struct {
-	Libros  []Libro
-	Detalle *Libro
-	Año     int
-	Usuario string
-}
+// La definición de Libro y DatosPagina se ha movido a handlers.go
+// para que sea accesible por todas las funciones que la utilizan.
+// Si el proyecto crece, estas estructuras deberían ir en un archivo models.go.
+// Se asume que DatosPagina está definida en handlers.go y es accesible.
 
 func Index(w http.ResponseWriter, r *http.Request) {
-	var libroSeleccionado *Libro
-	idStr := r.URL.Query().Get("id")
-	if idStr != "" {
-		if id, err := strconv.Atoi(idStr); err == nil {
-			for _, libro := range libros {
-				if libro.ID == id {
-					libroSeleccionado = &libro
-					break
-				}
-			}
-		}
-	}
-
 	usuario := ""
+	rol := ""
 	if cookie, err := r.Cookie("usuario"); err == nil {
 		usuario = cookie.Value
 	}
+	if cookie, err := r.Cookie("rol"); err == nil {
+		rol = cookie.Value
+	}
 
 	data := DatosPagina{
-		Libros:  libros,
-		Detalle: libroSeleccionado,
+		Libros:  nil,
+		Detalle: nil,
 		Año:     time.Now().Year(),
 		Usuario: usuario,
+		Rol:     rol,
 	}
 
 	tmpl, err := template.ParseFiles("templates/base.html", "templates/index.html")
@@ -73,17 +45,23 @@ func Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	InitFirebase()
+	InitFirebase() // Asume que esta función inicializa FirestoreClient globalmente
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.HandleFunc("/", Index)
 	http.HandleFunc("/registrar", RegistrarHandler)
-	http.HandleFunc("/personas", PersonasHandler)
-	http.HandleFunc("/prestamos", PrestamoHandler)
 	http.HandleFunc("/login", LoginHandler)
 	http.HandleFunc("/logout", LogoutHandler)
+	http.HandleFunc("/registrar-libro", RegistrarLibroHandler)
+	http.HandleFunc("/libros", LibrosHandler)
+	http.HandleFunc("/devoluciones", DevolucionesHandler)
+	// Asegúrate de que PersonasHandler se registre solo UNA vez
+	// http.HandleFunc("/personas", PersonasHandler)
+	http.HandleFunc("/editar-libros", EditarLibroHandler)
+	http.HandleFunc("/eliminar-libro", EliminarLibroHandler)
+	//	http.HandleFunc("/editar-persona", EditarPersonaHandler)     // Nueva ruta para editar personas
+	//	http.HandleFunc("/eliminar-persona", EliminarPersonaHandler) // Nueva ruta para eliminar personas
 
-	log.Println("✅ Conexión con Firebase Firestore exitosa")
 	log.Println("Servidor corriendo en http://localhost:3000/")
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }

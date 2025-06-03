@@ -1,26 +1,119 @@
-{{define "title"}}Usuarios Registrados{{end}}
+{{define "title"}}Usuarios Registrados | Biblioteca PUCE{{end}}
 
 {{define "content"}}
-<h2 class="mb-4 text-center">Usuarios Registrados</h2>
+<div class="container my-5">
+    <h2 class="mb-4 text-center">👥 Usuarios Registrados</h2>
+    <p class="lead text-center mb-3">Lista de todas las personas registradas en el sistema.</p>
 
-<div class="table-responsive">
-  <table class="table table-striped table-hover text-center">
-    <thead class="table-dark">
-      <tr>
-        <th>Nombre</th>
-        <th>Cédula</th>
-        <th>Año de nacimiento</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{range .Personas}}
-      <tr>
-        <td>{{.Nombre}}</td>
-        <td>{{.Cedula}}</td>
-        <td>{{.Ano}}</td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
+    {{if eq .Rol "admin"}}
+    <div class="table-responsive">
+        <table id="tabla-personas" class="table table-hover table-bordered shadow-sm rounded-lg overflow-hidden">
+            <thead class="bg-dark text-white">
+                <tr>
+                    <th scope="col">N°</th>
+                    <th scope="col">Nombre</th>
+                    <th scope="col">Cédula</th>
+                    <th scope="col">Año de Nacimiento</th>
+                    <th scope="col">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range $index, $persona := .Personas}}
+                <tr>
+                    <td>{{inc $index}}</td>
+                    <td>{{$persona.Nombre}}</td>
+                    <td>{{$persona.Cedula}}</td>
+                    <td>{{$persona.Ano}}</td>
+                    <td>
+                        <a href="/editar-persona?id={{$persona.ID}}" class="btn btn-sm btn-info me-2" title="Editar Usuario">
+                            <i class="fas fa-pencil-alt"></i>
+                        </a>
+                        <button class="btn btn-sm btn-danger delete-persona-btn" data-id="{{$persona.ID}}" title="Eliminar Usuario">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+                {{else}}
+                <tr>
+                    <td colspan="5" class="text-center">No hay usuarios registrados.</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="alert alert-warning text-center" role="alert">
+        Solo los administradores pueden ver esta sección.
+    </div>
+    {{end}}
 </div>
+
+<!-- Modal de Confirmación para Eliminar -->
+<div class="modal fade" id="deleteConfirmationModalPersona" tabindex="-1" aria-labelledby="deleteConfirmationModalPersonaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteConfirmationModalPersonaLabel">Confirmar Eliminación de Usuario</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ¿Estás seguro de que deseas eliminar a este usuario? Esta acción no se puede deshacer.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmDeletePersonaButton">Eliminar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script para manejar eliminación -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const deleteConfirmationModalPersona = new bootstrap.Modal(document.getElementById('deleteConfirmationModalPersona'));
+        const confirmDeletePersonaButton = document.getElementById('confirmDeletePersonaButton');
+        let personaIdToDelete = null;
+
+        const personasTable = document.getElementById('tabla-personas');
+        if (personasTable) {
+            personasTable.addEventListener('click', function (e) {
+                const deleteButton = e.target.closest('.delete-persona-btn');
+                if (deleteButton) {
+                    personaIdToDelete = deleteButton.dataset.id;
+                    deleteConfirmationModalPersona.show();
+                }
+            });
+        }
+
+        confirmDeletePersonaButton.addEventListener('click', function () {
+            if (personaIdToDelete) {
+                fetch('/eliminar-persona', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: `id=${encodeURIComponent(personaIdToDelete)}`
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            deleteConfirmationModalPersona.hide();
+                            location.reload();
+                        } else {
+                            alert('Error al eliminar el usuario.');
+                            console.error('Error al eliminar usuario:', response.statusText);
+                        }
+                    })
+                    .catch(error => {
+                        alert('Error de red al intentar eliminar el usuario.');
+                        console.error('Error de red:', error);
+                    });
+            }
+        });
+    });
+</script>
+
+<!-- Íconos Font Awesome (si no están en tu base.html) -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
 {{end}}

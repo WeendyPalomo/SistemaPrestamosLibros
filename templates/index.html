@@ -1,52 +1,39 @@
 {{define "title"}}Inicio | Biblioteca PUCE{{end}}
 
 {{define "content"}}
-<h2 class="mb-4 text-center">📚 Libros Disponibles</h2>
+<header class="hero text-center text-white py-4 mb-4" style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('/static/-HEADER.jpeg') no-repeat center center; background-size: cover; min-height: 150px; display: flex; align-items: center; justify-content: center;">
+    <div class="container">
+        <h1 class="display-4 fw-bold">Sistema de Préstamos de Libros</h1>
+        <p class="lead mt-3">“Un lector vive mil vidas antes de morir. El que nunca lee vive solo una.”</p>
+        <p>Descubre nuevas historias, viaja sin moverte y crece con cada página.</p>
+    </div>
+</header>
 
-<div class="text-center mb-4">
-    <a href="/registrar" class="btn btn-primary me-2">Registrar Usuario</a>
-    <a href="/prestamos" class="btn btn-success me-2">Registrar Préstamo</a>
-    <a href="/autores" class="btn btn-secondary">Ver Autores</a>
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 text-center">
+            <h2 class="mb-4">Bienvenido a la Biblioteca PUCE</h2>
+            <p class="lead">Explora nuestra vasta colección de libros y registra tus préstamos de manera sencilla y rápida.</p>
+            <p>Inicia sesion para acceder a las diferentes secciones:</p>
+            <ul class="list-unstyled text-start d-inline-block mt-4">
+                <li><i class="fas fa-book me-2 text-primary"></i> **Libros:** Explora todos los títulos disponibles en nuestra biblioteca.</li>
+                <li><i class="fas fa-handshake me-2 text-success"></i> **Préstamos:** Registra un nuevo préstamo de un libro.</li>
+                <li><i class="fas fa-undo-alt"></i> **Devolucion Libro:** Devuelve libros a la colección.</li>
+                {{if eq .Rol "admin"}}
+                <li><i class="fas fa-users me-2 text-info"></i> **Usuarios:** Gestiona los usuarios registrados en el sistema.</li>
+                <li><i class="fas fa-plus-square me-2 text-warning"></i> **Registrar Libro:** Añade nuevos libros a la colección.</li>
+                {{end}}
+            </ul>
+        </div>
+    </div>
 </div>
-
-<div class="table-responsive">
-    <table class="table table-bordered table-hover shadow-sm align-middle text-center">
-        <thead class="table-dark">
-            <tr>
-                <th>Portada</th>
-                <th>Título</th>
-                <th>Autor</th>
-                <th>Año</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{range .Libros}}
-            <tr>
-                <td>
-                    <img src="{{.ImagenURL}}" alt="Portada" style="width: 60px; height: auto; border-radius: 4px;">
-                </td>
-                <td>
-                    <a href="/?id={{.ID}}" class="text-decoration-none">{{.Nombre}}</a>
-                </td>
-                <td>{{.Autor}}</td>
-                <td>{{.Ano}}</td>
-            </tr>
-            {{end}}
-        </tbody>
-    </table>
-</div>
-{{if .Usuario}}
-  <p class="text-success">Bienvenido, {{.Usuario}} 👋</p>
-{{else}}
-  <p class="text-muted">Inicia sesión para registrar préstamos.</p>
-{{end}}
 
 {{if .Detalle}}
-<div class="card mt-5 border-info shadow">
+<div class="card mt-5 border-info shadow container">
     <div class="card-header bg-info text-white">📖 Detalle del Libro</div>
     <div class="card-body">
         <h5 class="card-title">{{.Detalle.Nombre}}</h5>
-        <img src="{{.Detalle.ImagenURL}}" alt="Portada del libro" class="mb-3" style="max-width: 200px;">
+        <img src="{{.Detalle.ImagenURL}}" alt="Portada del libro" class="mb-3 img-fluid rounded" style="max-width: 250px;">
         <ul class="list-group list-group-flush">
             <li class="list-group-item"><strong>Autor:</strong> {{.Detalle.Autor}}</li>
             <li class="list-group-item"><strong>Año:</strong> {{.Detalle.Ano}}</li>
