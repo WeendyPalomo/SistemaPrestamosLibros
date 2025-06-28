@@ -56,12 +56,13 @@ func main() {
 	http.HandleFunc("/libros", LibrosHandler)
 	http.HandleFunc("/devoluciones", DevolucionesHandler)
 	// Asegúrate de que PersonasHandler se registre solo UNA vez
-	// http.HandleFunc("/personas", PersonasHandler)
+	http.HandleFunc("/personas", PersonasHandler)  // Descomentado para habilitar la gestión de personas
+	http.HandleFunc("/prestamos", PrestamoHandler) // Añadido para el módulo de préstamos
 	http.HandleFunc("/editar-libros", EditarLibroHandler)
 	http.HandleFunc("/eliminar-libro", EliminarLibroHandler)
-	//	http.HandleFunc("/editar-persona", EditarPersonaHandler)     // Nueva ruta para editar personas
-	//	http.HandleFunc("/eliminar-persona", EliminarPersonaHandler) // Nueva ruta para eliminar personas
-
+	// También podrías necesitar rutas para editar y eliminar personas si aún no las tienes
+	// http.HandleFunc("/editar-persona", EditarPersonaHandler)
+	// http.HandleFunc("/eliminar-persona", EliminarPersonaHandler)
 	log.Println("Servidor corriendo en http://localhost:3000/")
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }

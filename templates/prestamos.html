@@ -1,21 +1,54 @@
-{{define "title"}}Registrar Préstamo{{end}}
+{{define "title"}}Registrar Préstamo | Biblioteca PUCE{{end}}
 
 {{define "content"}}
-<h2 class="mb-4 text-center">Registrar Préstamo</h2>
+<div class="container my-5">
+    <h2 class="mb-4 text-center">📚 Registrar Nuevo Préstamo</h2>
+    <p class="lead text-center mb-3">Selecciona un libro y la fecha para registrar un préstamo.</p>
 
-<form method="POST" action="/prestamos" class="mx-auto" style="max-width: 600px;">
-  <div class="mb-3">
-    <label for="usuario" class="form-label">Nombre del Usuario</label>
-    <input type="text" class="form-control" id="usuario" name="usuario" required>
-  </div>
-  <div class="mb-3">
-    <label for="libro" class="form-label">Nombre del Libro</label>
-    <input type="text" class="form-control" id="libro" name="libro" required>
-  </div>
-  <div class="mb-3">
-    <label for="fecha" class="form-label">Fecha del Préstamo</label>
-    <input type="date" class="form-control" id="fecha" name="fecha" required>
-  </div>
-  <button type="submit" class="btn btn-success">Registrar</button>
-</form>
+    {{/* Mensajes de éxito o error */}}
+    {{if .Mensaje}}
+    <div class="alert alert-{{.TipoMensaje}} alert-dismissible fade show" role="alert">
+        {{.Mensaje}}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {{end}}
+
+    <form method="POST" action="/prestamos" class="mx-auto p-4 border rounded shadow-sm" style="max-width: 600px; background-color: #ffffff;">
+        <div class="mb-3">
+            <label for="libroID" class="form-label">Libro</label>
+            <select class="form-select" id="libroID" name="libroID" required>
+                <option value="">Seleccione un libro</option>
+                {{range .LibrosDisponibles}}
+                <option value="{{.ID}}">{{.Nombre}} ({{.Autor}}) - Copias disponibles: {{.Copias}}</option>
+                {{end}}
+            </select>
+            <small class="form-text text-muted">Se muestran todos los libros. El sistema verificará la disponibilidad al registrar.</small>
+        </div>
+        <div class="mb-3">
+            <label for="usuarioNombreDisplay" class="form-label">Usuario</label>
+            <input type="text" class="form-control" id="usuarioNombreDisplay" value="{{.Usuario}}" readonly>
+            <small class="form-text text-muted">El préstamo se registrará a nombre de tu usuario actual.</small>
+        </div>
+        <div class="mb-3">
+            <label for="fecha" class="form-label">Fecha del Préstamo</label>
+            <input type="date" class="form-control" id="fecha" name="fecha" required readonly> {{/* Añadido readonly */}}
+            <small class="form-text text-muted">La fecha actual se selecciona por defecto y no se puede modificar.</small>
+        </div>
+        <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-success btn-lg">Registrar Préstamo <i class="fas fa-handshake ms-2"></i></button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Script para asegurar que la fecha actual se establezca al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0'); // Meses son 0-index
+        const day = String(today.getDate()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+        document.getElementById('fecha').value = formattedDate;
+    });
+</script>
 {{end}}
