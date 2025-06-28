@@ -1,17 +1,150 @@
 {{define "title"}}Devoluciones | Biblioteca PUCE{{end}}
 
 {{define "content"}}
-<h2 class="mb-4 text-center">Registrar Devolución</h2>
+<div class="container my-5">
+    <h2 class="mb-4 text-center">🔄 Gestión de Devoluciones</h2>
+    <p class="lead text-center mb-3">Aquí puedes ver los libros actualmente prestados y registrar su devolución.</p>
 
-<form method="POST" action="/devoluciones" class="mx-auto" style="max-width: 600px;">
-  <div class="mb-3">
-    <label for="usuario" class="form-label">Nombre del Usuario</label>
-    <input type="text" class="form-control" id="usuario" name="usuario" required>
-  </div>
-  <div class="mb-3">
-    <label for="libro" class="form-label">Nombre del Libro</label>
-    <input type="text" class="form-control" id="libro" name="libro" required>
-  </div>
-  <button type="submit" class="btn btn-success">Registrar Devolución</button>
-</form>
+    {{/* Mensajes de éxito o error */}}
+    {{if .Mensaje}}
+    <div class="alert alert-{{.TipoMensaje}} alert-dismissible fade show" role="alert">
+        {{.Mensaje}}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {{end}}
+
+    {{if .DevolucionesData}}
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered shadow-sm rounded-lg overflow-hidden">
+            <thead class="bg-dark text-white">
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Libro</th>
+                    <th scope="col">Autor</th>
+                    <th scope="col">Prestado Por</th>
+                    <th scope="col">Fecha Préstamo</th>
+                    <th scope="col">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range $index, $devolucion := .DevolucionesData}}
+                <tr>
+                    <td>{{inc $index}}</td>
+                    <td>{{$devolucion.LibroNombre}}</td>
+                    <td>{{$devolucion.AutorNombre}}</td>
+                    <td>{{$devolucion.UsuarioNombre}}</td>
+                    <td>{{formatDate $devolucion.FechaPrestamo}}</td>
+                    <td>
+                        <button
+                            class="btn btn-success btn-sm devolver-btn"
+                            data-prestamoid="{{$devolucion.PrestamoID}}"
+                            data-libroid="{{$devolucion.LibroID}}"
+                            data-bs-toggle="modal"
+                            data-bs-target="#confirmDevolucionModal"
+                            title="Registrar Devolución">
+                            Devolver <i class="fas fa-undo-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="alert alert-info text-center" role="alert">
+        No hay libros prestados actualmente para mostrar.
+    </div>
+    {{end}}
+</div>
+
+<!-- Modal de Confirmación de Devolución -->
+<div class="modal fade" id="confirmDevolucionModal" tabindex="-1" aria-labelledby="confirmDevolucionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="confirmDevolucionModalLabel">Confirmar Devolución</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ¿Estás seguro de que deseas registrar la devolución de este libro?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" id="confirmarDevolucionBtn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('DOM completamente cargado y parseado.'); // Debug: DOM cargado
+
+    const confirmDevolucionModalElement = document.getElementById('confirmDevolucionModal');
+    const confirmDevolucionModal = new bootstrap.Modal(confirmDevolucionModalElement);
+    const confirmarDevolucionBtn = document.getElementById('confirmarDevolucionBtn');
+    
+    let prestamoActual = ""; // Variable para almacenar el ID del préstamo actual
+    let libroActual = "";    // Variable para almacenar el ID del libro actual
+
+    // Escuchar el evento 'show.bs.modal' en el modal
+    confirmDevolucionModalElement.addEventListener('show.bs.modal', function (event) {
+        // 'relatedTarget' es el botón que disparó el modal (el botón "Devolver")
+        const button = event.relatedTarget; 
+        prestamoActual = button.dataset.prestamoid; // Asignar a la variable de ámbito superior
+        libroActual = button.dataset.libroid;       // Asignar a la variable de ámbito superior
+        
+        console.log('Modal de confirmación mostrando. PrestamoID del botón disparador:', prestamoActual, 'LibroID del botón disparador:', libroActual);
+    });
+
+    // Manejar el clic en el botón "Confirmar" del modal
+    confirmarDevolucionBtn.addEventListener('click', function () {
+        console.log('Botón "Confirmar" clicado.'); // Debug: Botón confirmar clicado
+
+        // Obtener los IDs de las variables de ámbito superior
+        const prestamoIdToReturn = prestamoActual;
+        const libroIdToUpdate = libroActual;
+
+        if (!prestamoIdToReturn || !libroIdToUpdate) {
+            console.error('IDs de préstamo o libro no disponibles para la devolución.');
+            alert('Error: No se pudo obtener la información del préstamo para la devolución. Intente recargar la página.'); // Mensaje al usuario
+            return;
+        }
+
+        console.log('Enviando solicitud de devolución para PrestamoID:', prestamoIdToReturn, 'LibroID:', libroIdToUpdate); // Debug: Antes de fetch
+
+        // Enviar la solicitud POST al servidor
+        fetch('/devoluciones', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest' // Indicar que es una solicitud AJAX
+            },
+            body: `prestamoID=${encodeURIComponent(prestamoIdToReturn)}&libroID=${encodeURIComponent(libroIdToUpdate)}`
+        })
+        .then(response => {
+            console.log('Respuesta del servidor recibida. Status:', response.status); // Debug: Respuesta recibida
+            if (response.ok) {
+                console.log('Devolución exitosa. Recargando página...'); // Debug: Devolución exitosa
+                confirmDevolucionModal.hide(); // Ocultar el modal
+                window.location.reload(); // Recarga simple para ver los cambios
+            } else {
+                // Manejar errores, por ejemplo, mostrar un mensaje al usuario
+                response.text().then(text => {
+                    console.error('Error al registrar la devolución:', text); // Debug: Error del servidor
+                    alert('Error al registrar la devolución: ' + text); // Usar un modal personalizado en un entorno real
+                }).catch(e => {
+                    console.error('Error al leer la respuesta de error:', e); // Debug: Error al leer respuesta
+                    alert('Error desconocido al registrar la devolución.');
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error en la comunicación con el servidor:', error); // Debug: Error de red
+            alert('Error de red al intentar registrar la devolución.'); // Usar un modal personalizado en un entorno real
+        });
+    });
+});
+</script>
 {{end}}
