@@ -261,7 +261,9 @@ func EditarLibroHandler(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/libros?msg=Número de copias inválido&msg_type=danger", http.StatusSeeOther)
 			return
 		}
-		disponible := disponibleStr == "on" // Checkbox value is "on" if checked
+		// Un checkbox no enviado (desmarcado) resulta en un valor vacío, no "off".
+		// Si se envía "on", significa que está marcado. Si es vacío, está desmarcado.
+		disponible := (disponibleStr == "on")
 
 		updates := []firestore.Update{
 			{Path: "nombre", Value: nombre},
@@ -326,7 +328,6 @@ func EliminarLibroHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("✅ Libro eliminado exitosamente: (ID: %s)", bookID)
 	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
-		log.Println("DEBUG: Respondiendo 200 OK para petición AJAX de eliminación.")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -531,17 +532,11 @@ func PrestamoHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		// --- Lógica para el método POST: Registrar el préstamo ---
 		libroID := r.FormValue("libroID")
-		fechaStr := r.FormValue("fecha") // La fecha viene del campo oculto/readonly
+		// La fecha y el usuario se obtienen internamente, no del formulario
+		fechaPrestamo := time.Now() // Obtener la fecha actual directamente en el backend
 
-		if libroID == "" || fechaStr == "" {
-			http.Redirect(w, r, "/prestamos?msg=Todos los campos son obligatorios&msg_type=danger", http.StatusBadRequest)
-			return
-		}
-
-		fechaPrestamo, err := time.Parse("2006-01-02", fechaStr) // Parsear la fecha del formulario
-		if err != nil {
-			log.Printf("Error al parsear fecha de préstamo: %v", err)
-			http.Redirect(w, r, "/prestamos?msg=Formato de fecha inválido&msg_type=danger", http.StatusBadRequest)
+		if libroID == "" { // Solo validar que el libroID no esté vacío
+			http.Redirect(w, r, "/prestamos?msg=Seleccione un libro para el préstamo&msg_type=danger", http.StatusBadRequest)
 			return
 		}
 
@@ -574,19 +569,17 @@ func PrestamoHandler(w http.ResponseWriter, r *http.Request) {
 			if err := libroDoc.DataTo(&libro); err != nil {
 				return err // Error al mapear datos del libro
 			}
-			if !libro.Disponible {
-				return &http.ProtocolError{ErrorString: "El libro no está disponible para préstamo."} // Usar un error personalizado
-			}
+			// La lógica de disponibilidad se basa en `Copias`
 			if libro.Copias <= 0 { // Verificar si hay copias disponibles
-				return &http.ProtocolError{ErrorString: "No quedan copias de este libro."}
+				return &http.ProtocolError{ErrorString: "El libro no está disponible para préstamo o no quedan copias."}
 			}
 
 			// 2. Crear el nuevo documento de préstamo
 			nuevoPrestamo := Prestamo{ // Declarar nuevoPrestamo aquí
 				LibroID:       libroID,
-				PersonaID:     personaID, // Usar el ID de la persona logueada
-				FechaPrestamo: fechaPrestamo,
-				Activo:        true, // El préstamo está activo
+				PersonaID:     personaID,     // Usar el ID de la persona logueada
+				FechaPrestamo: fechaPrestamo, // Usar la fecha actual del backend
+				Activo:        true,          // El préstamo está activo
 			}
 			// Corregido: tx.Create solo devuelve un error, no un DocumentRef
 			err = tx.Create(FirestoreClient.Collection("prestamos").NewDoc(), nuevoPrestamo)
@@ -599,6 +592,8 @@ func PrestamoHandler(w http.ResponseWriter, r *http.Request) {
 			actualizacionesLibro := []firestore.Update{
 				{Path: "copias", Value: nuevasCopias},
 			}
+			// Solo marcar como no disponible si las copias llegan a 0.
+			// Si hay más copias, el libro sigue siendo "disponible" para otros préstamos.
 			if nuevasCopias <= 0 {
 				actualizacionesLibro = append(actualizacionesLibro, firestore.Update{Path: "disponible", Value: false})
 				actualizacionesLibro = append(actualizacionesLibro, firestore.Update{Path: "prestadoPorID", Value: personaID}) // Asignar al último que lo prestó

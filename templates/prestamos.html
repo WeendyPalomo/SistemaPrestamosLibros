@@ -3,7 +3,7 @@
 {{define "content"}}
 <div class="container my-5">
     <h2 class="mb-4 text-center">📚 Registrar Nuevo Préstamo</h2>
-    <p class="lead text-center mb-3">Selecciona un libro y la fecha para registrar un préstamo.</p>
+    <p class="lead text-center mb-3">Selecciona un libro para registrar el préstamo.</p>
 
     {{/* Mensajes de éxito o error */}}
     {{if .Mensaje}}
@@ -19,21 +19,15 @@
             <select class="form-select" id="libroID" name="libroID" required>
                 <option value="">Seleccione un libro</option>
                 {{range .LibrosDisponibles}}
-                <option value="{{.ID}}">{{.Nombre}} ({{.Autor}}) - Copias disponibles: {{.Copias}}</option>
+                <option value="{{.ID}}" data-copias="{{.Copias}}">{{.Nombre}}</option>
                 {{end}}
             </select>
-            <small class="form-text text-muted">Se muestran todos los libros. El sistema verificará la disponibilidad al registrar.</small>
+            <small class="form-text text-muted">Seleccione para ver la disponibilidad.</small>
         </div>
-        <div class="mb-3">
-            <label for="usuarioNombreDisplay" class="form-label">Usuario</label>
-            <input type="text" class="form-control" id="usuarioNombreDisplay" value="{{.Usuario}}" readonly>
-            <small class="form-text text-muted">El préstamo se registrará a nombre de tu usuario actual.</small>
+        <div id="disponibilidadMensaje" class="mb-3">
+            {{/* Aquí se mostrará el mensaje de disponibilidad */}}
         </div>
-        <div class="mb-3">
-            <label for="fecha" class="form-label">Fecha del Préstamo</label>
-            <input type="date" class="form-control" id="fecha" name="fecha" required readonly> {{/* Añadido readonly */}}
-            <small class="form-text text-muted">La fecha actual se selecciona por defecto y no se puede modificar.</small>
-        </div>
+
         <div class="d-grid gap-2">
             <button type="submit" class="btn btn-success btn-lg">Registrar Préstamo <i class="fas fa-handshake ms-2"></i></button>
         </div>
@@ -41,14 +35,64 @@
 </div>
 
 <script>
-    // Script para asegurar que la fecha actual se establezca al cargar la página
     document.addEventListener('DOMContentLoaded', function() {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0'); // Meses son 0-index
-        const day = String(today.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
-        document.getElementById('fecha').value = formattedDate;
+        const libroSelect = document.getElementById('libroID');
+        const disponibilidadMensajeDiv = document.getElementById('disponibilidadMensaje');
+
+        // Obtener la lista de libros del contexto de la plantilla Go
+        // Convertir el JSON de Go a un objeto JavaScript
+        const librosData = [
+            {{range .LibrosDisponibles}}
+            {
+                ID: "{{.ID}}",
+                Nombre: "{{.Nombre}}",
+                Copias: {{.Copias}}
+            },
+            {{end}}
+        ];
+
+        function mostrarDisponibilidad() {
+            const selectedOption = libroSelect.options[libroSelect.selectedIndex];
+            const libroID = selectedOption.value;
+
+            if (libroID === "") {
+                disponibilidadMensajeDiv.innerHTML = ''; // Limpiar mensaje si no hay libro seleccionado
+                return;
+            }
+
+            // Buscar el libro en la lista de datos
+            const selectedLibro = librosData.find(libro => libro.ID === libroID);
+
+            if (selectedLibro) {
+                if (selectedLibro.Copias > 0) {
+                    disponibilidadMensajeDiv.innerHTML = `
+                        <div class="alert alert-success d-flex align-items-center" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <div>
+                                Disponible. Copias restantes: <strong>${selectedLibro.Copias}</strong>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    disponibilidadMensajeDiv.innerHTML = `
+                        <div class="alert alert-danger d-flex align-items-center" role="alert">
+                            <i class="fas fa-times-circle me-2"></i>
+                            <div>
+                                No disponible. No quedan copias.
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                disponibilidadMensajeDiv.innerHTML = ''; // En caso de que no se encuentre el libro (debería ser raro)
+            }
+        }
+
+        // Añadir el event listener al selector de libros
+        libroSelect.addEventListener('change', mostrarDisponibilidad);
+
+        // Llamar a la función al cargar la página si ya hay un libro seleccionado (por ejemplo, si hubo un error de validación y se redirigió)
+        mostrarDisponibilidad();
     });
 </script>
 {{end}}

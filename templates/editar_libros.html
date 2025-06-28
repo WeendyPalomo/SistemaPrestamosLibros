@@ -40,6 +40,13 @@
                         <input type="number" class="form-control" id="copias" name="copias" value="{{.Detalle.Copias}}" required min="0">
                     </div>
 
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="disponible" name="disponible" {{if .Detalle.Disponible}}checked{{end}}>
+                        <label class="form-check-label" for="disponible">
+                            Disponible para Préstamo
+                        </label>
+                    </div>
+
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary btn-lg">Guardar Cambios</button>
                         <a href="/libros" class="btn btn-outline-secondary">Cancelar</a>
