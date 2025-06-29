@@ -123,20 +123,29 @@ document.addEventListener('DOMContentLoaded', function () {
             body: `prestamoID=${encodeURIComponent(prestamoIdToReturn)}&libroID=${encodeURIComponent(libroIdToUpdate)}`
         })
         
-        .then(response => {
+    .then(response => {
   return response.text().then(text => {
     const msgContainer = document.getElementById('devoluciones-message');
     if (response.ok) {
+      // 1️⃣ Cerrar el modal
       confirmDevolucionModal.hide();
-      // Remueve la fila en lugar de recargar…
+
+      // 2️⃣ Asegurarnos de que se quiten clases y backdrops
+      document.body.classList.remove('modal-open');
+      document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+
+      // 3️⃣ Remover la fila de la tabla
       const btn = document.querySelector(`[data-prestamoid="${prestamoActual}"]`);
-      btn.closest('tr').remove();
+      if (btn) btn.closest('tr').remove();
+
+      // 4️⃣ Mostrar mensaje de éxito integrado en la página
       msgContainer.innerHTML = `
         <div class="alert alert-success alert-dismissible fade show" role="alert">
           Devolución registrada correctamente.
           <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>`;
     } else {
+      // Mismo proceso para el mensaje de error (sin cerrar el modal)
       msgContainer.innerHTML = `
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
           Error al procesar devolución: ${text}
@@ -153,6 +162,7 @@ document.addEventListener('DOMContentLoaded', function () {
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>`;
 });
+
 
     });
 });
