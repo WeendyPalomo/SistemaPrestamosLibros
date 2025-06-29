@@ -5,6 +5,8 @@
     <h2 class="mb-4 text-center">👥 Usuarios Registrados</h2>
     <p class="lead text-center mb-3">Lista de todas las personas registradas en el sistema.</p>
 
+    <div id="personas-message"></div> <!-- Contenedor para mensajes -->
+
     {{if eq .Rol "admin"}}
     <div class="table-responsive">
         <table id="tabla-personas" class="table table-hover table-bordered shadow-sm rounded-lg overflow-hidden">
@@ -13,7 +15,6 @@
                     <th scope="col">N°</th>
                     <th scope="col">Nombre</th>
                     <th scope="col">Cédula</th>
-                    <th scope="col">Año de Nacimiento</th>
                     <th scope="col">Acciones</th>
                 </tr>
             </thead>
@@ -23,19 +24,19 @@
                     <td>{{inc $index}}</td>
                     <td>{{$persona.Nombre}}</td>
                     <td>{{$persona.Cedula}}</td>
-                    <td>{{$persona.Ano}}</td>
                     <td>
-                        <a href="/editar-persona?id={{$persona.ID}}" class="btn btn-sm btn-info me-2" title="Editar Usuario">
-                            <i class="fas fa-pencil-alt"></i>
-                        </a>
+                        {{if ne $.Usuario $persona.Nombre}}
                         <button class="btn btn-sm btn-danger delete-persona-btn" data-id="{{$persona.ID}}" title="Eliminar Usuario">
                             <i class="fas fa-trash-alt"></i>
                         </button>
+                        {{else}}
+                        <span class="text-muted">No se puede eliminar</span>
+                        {{end}}
                     </td>
                 </tr>
                 {{else}}
                 <tr>
-                    <td colspan="5" class="text-center">No hay usuarios registrados.</td>
+                    <td colspan="4" class="text-center">No hay usuarios registrados.</td>
                 </tr>
                 {{end}}
             </tbody>
@@ -48,13 +49,13 @@
     {{end}}
 </div>
 
-<!-- Modal de Confirmación para Eliminar -->
+<!-- Modal de Confirmación para Eliminar Usuario -->
 <div class="modal fade" id="deleteConfirmationModalPersona" tabindex="-1" aria-labelledby="deleteConfirmationModalPersonaLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title" id="deleteConfirmationModalPersonaLabel">Confirmar Eliminación de Usuario</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body">
                 ¿Estás seguro de que deseas eliminar a este usuario? Esta acción no se puede deshacer.
@@ -69,51 +70,75 @@
 
 <!-- Script para manejar eliminación -->
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const deleteConfirmationModalPersona = new bootstrap.Modal(document.getElementById('deleteConfirmationModalPersona'));
-        const confirmDeletePersonaButton = document.getElementById('confirmDeletePersonaButton');
-        let personaIdToDelete = null;
+document.addEventListener('DOMContentLoaded', function () {
+    const deleteConfirmationModalPersonaElement = document.getElementById('deleteConfirmationModalPersona');
+    const deleteConfirmationModalPersona = new bootstrap.Modal(deleteConfirmationModalPersonaElement);
+    const confirmDeletePersonaButton = document.getElementById('confirmDeletePersonaButton');
+    const msgContainer = document.getElementById('personas-message');
+    let personaIdToDelete = null;
 
-        const personasTable = document.getElementById('tabla-personas');
-        if (personasTable) {
-            personasTable.addEventListener('click', function (e) {
-                const deleteButton = e.target.closest('.delete-persona-btn');
-                if (deleteButton) {
-                    personaIdToDelete = deleteButton.dataset.id;
-                    deleteConfirmationModalPersona.show();
-                }
-            });
-        }
-
-        confirmDeletePersonaButton.addEventListener('click', function () {
-            if (personaIdToDelete) {
-                fetch('/eliminar-persona', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: `id=${encodeURIComponent(personaIdToDelete)}`
-                })
-                    .then(response => {
-                        if (response.ok) {
-                            deleteConfirmationModalPersona.hide();
-                            location.reload();
-                        } else {
-                            alert('Error al eliminar el usuario.');
-                            console.error('Error al eliminar usuario:', response.statusText);
-                        }
-                    })
-                    .catch(error => {
-                        alert('Error de red al intentar eliminar el usuario.');
-                        console.error('Error de red:', error);
-                    });
+    const personasTable = document.getElementById('tabla-personas');
+    if (personasTable) {
+        personasTable.addEventListener('click', function (e) {
+            const deleteButton = e.target.closest('.delete-persona-btn');
+            if (deleteButton) {
+                personaIdToDelete = deleteButton.dataset.id;
+                deleteConfirmationModalPersona.show();
             }
         });
+    }
+
+    confirmDeletePersonaButton.addEventListener('click', function () {
+        if (personaIdToDelete) {
+            fetch('/eliminar-persona', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `id=${encodeURIComponent(personaIdToDelete)}`
+            })
+            .then(response => {
+                return response.text().then(text => {
+                    if (response.ok) {
+                        deleteConfirmationModalPersona.hide();
+                        document.body.classList.remove('modal-open');
+                        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+
+                        const btn = document.querySelector(`button[data-id="${personaIdToDelete}"]`);
+                        if (btn) btn.closest('tr').remove();
+
+                        msgContainer.innerHTML = `
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                Usuario eliminado correctamente.
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>`;
+                    } else {
+                        msgContainer.innerHTML = `
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                Error al eliminar usuario: ${text}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>`;
+                        console.error('Error al eliminar usuario:', text);
+                    }
+                    personaIdToDelete = null;
+                });
+            })
+            .catch(error => {
+                msgContainer.innerHTML = `
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        Error de red al intentar eliminar el usuario.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>`;
+                console.error('Error de red:', error);
+                personaIdToDelete = null;
+            });
+        }
     });
+});
 </script>
 
-<!-- Íconos Font Awesome (si no están en tu base.html) -->
+<!-- Íconos Font Awesome (si no están ya en tu base.html) -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 
 {{end}}

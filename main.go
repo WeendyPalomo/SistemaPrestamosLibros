@@ -56,11 +56,10 @@ func main() {
 	http.HandleFunc("/libros", LibrosHandler)
 	http.HandleFunc("/devoluciones", DevolucionesHandler)
 	http.HandleFunc("/personas", PersonasHandler)
-	http.HandleFunc("/prestamos", PrestamoHandler) // Asegúrate de que esta línea esté activa
+	http.HandleFunc("/prestamos", PrestamoHandler)
 	http.HandleFunc("/editar-libros", EditarLibroHandler)
 	http.HandleFunc("/eliminar-libro", EliminarLibroHandler)
-	// http.HandleFunc("/editar-persona", EditarPersonaHandler) // Descomentar si implementas la edición de personas
-	// http.HandleFunc("/eliminar-persona", EliminarPersonaHandler) // Descomentar si implementas la eliminación de personas
+	http.HandleFunc("/eliminar-persona", EliminarPersonaHandler)
 	log.Println("Servidor corriendo en http://localhost:3000/")
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }

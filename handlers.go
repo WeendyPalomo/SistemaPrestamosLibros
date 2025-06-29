@@ -33,7 +33,7 @@ type Persona struct {
 	ID         string `json:"id" firestore:"id,omitempty"`
 	Nombre     string `json:"nombre" firestore:"nombre"`
 	Cedula     string `json:"cedula" firestore:"cedula"`
-	Ano        string `json:"ano" firestore:"ano"`      // Cambiado de int a string para coincidir con el tipo en Firestore
+	Ano        int    `json:"ano" firestore:"ano"`      // CAMBIADO: Ahora es int para consistencia numérica
 	Contrasena string `json:"-" firestore:"contrasena"` // Ignorar en JSON, no almacenar en el cliente
 	Rol        string `json:"rol" firestore:"rol"`
 }
@@ -579,11 +579,19 @@ func RegistrarHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Convertir anoStr a int antes de guardar
+	ano, errAno := strconv.Atoi(anoStr)
+	if errAno != nil {
+		log.Printf("Error al convertir año '%s' a int: %v", anoStr, errAno)
+		http.Error(w, "Año de nacimiento inválido", http.StatusBadRequest)
+		return
+	}
+
 	// Crear nuevo documento de persona
 	personaDoc := map[string]interface{}{
 		"nombre":     nombre,
 		"cedula":     cedula,
-		"ano":        anoStr,     // Usar anoStr directamente si Persona.Ano es string en Firestore
+		"ano":        ano,        // CAMBIADO: Guardar como int
 		"contrasena": contrasena, // En un entorno real, la contraseña debería ser hasheada
 		"rol":        rol,
 	}
@@ -656,10 +664,10 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 // PrestamoHandler maneja la visualización del formulario de préstamo y el procesamiento de envíos.
 func PrestamoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	usuarioNombre := "" // Cambiado para evitar confusión con el campo PersonaID
+	usuario := ""
 	rol := ""
 	if c, errCookie := r.Cookie("usuario"); errCookie == nil { // Renombrado err a errCookie
-		usuarioNombre = c.Value
+		usuario = c.Value
 	}
 	if c, errCookie := r.Cookie("rol"); errCookie == nil { // Renombrado err a errCookie
 		rol = c.Value
@@ -670,7 +678,7 @@ func PrestamoHandler(w http.ResponseWriter, r *http.Request) {
 	tipoMensaje := r.URL.Query().Get("msg_type")
 
 	if r.Method == http.MethodGet {
-		// --- Lógica para el método GET: Cargar TODOS los libros y el usuario logueado ---
+		// --- Lógica para el método GET: Cargar todos los libros y el usuario logueado ---
 		var allLibros []Libro
 		iterLibros := FirestoreClient.Collection("libro").Documents(ctx) // Obtener todos los libros
 		for {
@@ -698,7 +706,7 @@ func PrestamoHandler(w http.ResponseWriter, r *http.Request) {
 			LibrosDisponibles: allLibros,   // Ahora pasamos todos los libros aquí para la selección
 			Personas:          []Persona{}, // Ya no necesitamos la lista completa de personas para el select
 			Año:               time.Now().Year(),
-			Usuario:           usuarioNombre, // Se pasa el nombre del usuario logueado
+			Usuario:           usuario, // Se pasa el nombre del usuario logueado
 			Rol:               rol,
 			Mensaje:           mensaje,
 			TipoMensaje:       tipoMensaje,
@@ -720,21 +728,21 @@ func PrestamoHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Obtener el ID de la persona logueada
 		var personaID string
-		if usuarioNombre == "" {
+		if usuario == "" {
 			http.Redirect(w, r, "/login?msg="+url.QueryEscape("Debes iniciar sesión para registrar un préstamo")+"&msg_type=danger", http.StatusSeeOther)
 			return
 		}
 
 		// Buscar el ID de la persona en Firestore basado en el nombre de usuario de la cookie
-		iterPersona := FirestoreClient.Collection("persona").Where("nombre", "==", usuarioNombre).Documents(ctx)
+		iterPersona := FirestoreClient.Collection("persona").Where("nombre", "==", usuario).Documents(ctx)
 		personaDoc, errInner := iterPersona.Next() // Renombrado err a errInner
 		if errInner != nil {                       // Usar errInner
-			log.Printf("DEBUG Prestamo POST: Error al buscar persona '%s': %v", usuarioNombre, errInner)
+			log.Printf("DEBUG Prestamo POST: Error al buscar persona '%s': %v", usuario, errInner)
 			http.Redirect(w, r, "/prestamos?msg="+url.QueryEscape("No se encontró tu usuario en la base de datos.")+"&msg_type=danger", http.StatusSeeOther)
 			return
 		}
 		personaID = personaDoc.Ref.ID
-		log.Printf("DEBUG Prestamo POST: Usuario logueado: %s (ID: %s)", usuarioNombre, personaID)
+		log.Printf("DEBUG Prestamo POST: Usuario logueado: %s (ID: %s)", usuario, personaID)
 
 		// Iniciar una transacción de Firestore
 		err := FirestoreClient.RunTransaction(ctx, func(ctx_tx context.Context, tx *firestore.Transaction) error {
@@ -890,12 +898,56 @@ func PersonasHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error al cargar personas", http.StatusInternalServerError)
 			return
 		}
+
+		// Mapeo manual para manejar inconsistencias de tipo
 		var persona Persona
-		if errLoop := doc.DataTo(&persona); errLoop != nil { // Renombrado err a errLoop
-			log.Printf("Error al mapear datos de persona: %v", errLoop)
-			continue
-		}
 		persona.ID = doc.Ref.ID
+		data := doc.Data()
+
+		if nombre, ok := data["nombre"].(string); ok {
+			persona.Nombre = nombre
+		} else {
+			log.Printf("Advertencia: Tipo inesperado para 'nombre' en persona %s: %T", persona.ID, data["nombre"])
+		}
+
+		if cedula, ok := data["cedula"].(string); ok {
+			persona.Cedula = cedula
+		} else if cedulaFloat, ok := data["cedula"].(float64); ok {
+			// Si es un número, convertir a string (ej. 1234567890.0 -> "1234567890")
+			persona.Cedula = strconv.FormatFloat(cedulaFloat, 'f', 0, 64)
+			log.Printf("DEBUG: Convertida cédula float a string para persona %s: %s", persona.ID, persona.Cedula)
+		} else {
+			log.Printf("Advertencia: Tipo inesperado para 'cedula' en persona %s: %T", persona.ID, data["cedula"])
+			persona.Cedula = "" // Valor por defecto
+		}
+
+		if anoFloat, ok := data["ano"].(float64); ok { // Firestore devuelve números como float64
+			persona.Ano = int(anoFloat)
+		} else if anoStr, ok := data["ano"].(string); ok { // Si es un string, intentar convertir a int
+			parsedAno, errParseAno := strconv.Atoi(anoStr)
+			if errParseAno == nil {
+				persona.Ano = parsedAno
+			} else {
+				log.Printf("Advertencia: No se pudo convertir 'ano' '%s' a int para persona %s: %v", anoStr, persona.ID, errParseAno)
+				persona.Ano = 0 // Valor por defecto o manejar como error
+			}
+		} else {
+			log.Printf("Advertencia: Tipo inesperado para 'ano' en persona %s: %T", persona.ID, data["ano"])
+			persona.Ano = 0 // Valor por defecto
+		}
+
+		if contrasena, ok := data["contrasena"].(string); ok {
+			persona.Contrasena = contrasena
+		} else {
+			log.Printf("Advertencia: Tipo inesperado para 'contrasena' en persona %s: %T", persona.ID, data["contrasena"])
+		}
+
+		if rolData, ok := data["rol"].(string); ok {
+			persona.Rol = rolData
+		} else {
+			log.Printf("Advertencia: Tipo inesperado para 'rol' en persona %s: %T", persona.ID, data["rol"])
+		}
+
 		personas = append(personas, persona)
 	}
 
@@ -908,98 +960,17 @@ func PersonasHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, r, "personas.html", data)
 }
 
-// EditarPersonaHandler handles displaying the edit form and processing updates for a person.
-func EditarPersonaHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("DEBUG: Entrando a EditarPersonaHandler")
-	rol := ""
-	if c, errCookie := r.Cookie("rol"); errCookie == nil { // Renombrado err a errCookie
-		rol = c.Value
-	}
-	log.Printf("DEBUG: Rol del usuario: %s", rol)
-	if rol != "admin" {
-		log.Println("DEBUG: Acceso denegado a EditarPersonaHandler (no admin)")
-		http.Error(w, "Acceso denegado. Solo administradores pueden editar usuarios.", http.StatusForbidden)
-		return
-	}
-
-	if r.Method == http.MethodGet {
-		personID := r.URL.Query().Get("id")
-		if personID == "" {
-			http.Error(w, "ID de persona no proporcionado", http.StatusBadRequest)
-			return
-		}
-
-		ctx := context.Background()
-		doc, errInner := FirestoreClient.Collection("persona").Doc(personID).Get(ctx) // Renombrado err a errInner
-		if errInner != nil {                                                          // Usar errInner
-			http.Error(w, "Persona no encontrada: "+errInner.Error(), http.StatusNotFound)
-			return
-		}
-
-		var persona Persona
-		if errInner := doc.DataTo(&persona); errInner != nil { // Renombrado err a errInner
-			http.Error(w, "Error al parsear datos de la persona: "+errInner.Error(), http.StatusInternalServerError)
-			return
-		}
-		persona.ID = doc.Ref.ID // Asignar el ID del documento al campo ID de la estructura
-
-		usuarioCookie := ""
-		if c, errCookie := r.Cookie("usuario"); errCookie == nil { // Renombrado err a errCookie
-			usuarioCookie = c.Value
-		}
-
-		data := DatosPagina{
-			Detalle: &Libro{ // Usamos Detalle de Libro temporalmente para pasar la persona, idealmente sería un DetallePersona
-				ID:          persona.ID,
-				Nombre:      persona.Nombre,
-				Ano:         0,              // El campo Ano de Libro es int, pero el de Persona es string. Se usa 0 como placeholder.
-				Descripcion: persona.Cedula, // Usamos Descripcion para la cédula
-				Autor:       persona.Rol,    // Usamos Autor para el rol
-			},
-			Año:     time.Now().Year(),
-			Usuario: usuarioCookie,
-			Rol:     rol,
-		}
-		renderTemplate(w, r, "editar_persona.html", data) // Necesitarás crear editar_persona.html
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		personID := r.FormValue("id")
-		nombre := r.FormValue("nombre")
-		cedula := r.FormValue("cedula")
-		anoStr := r.FormValue("ano")
-		rol := r.FormValue("rol") // Permitir editar el rol
-
-		updates := []firestore.Update{
-			{Path: "nombre", Value: nombre},
-			{Path: "cedula", Value: cedula},
-			{Path: "ano", Value: anoStr}, // Guardar como string
-			{Path: "rol", Value: rol},
-		}
-
-		ctx := context.Background()
-		_, errInner := FirestoreClient.Collection("persona").Doc(personID).Update(ctx, updates) // Renombrado err a errInner
-		if errInner != nil {                                                                    // Usar errInner
-			log.Printf("Error al actualizar persona %s en Firestore: %v", personID, errInner)
-			http.Redirect(w, r, "/personas?msg=Error al actualizar el usuario&msg_type=danger", http.StatusSeeOther)
-			return
-		}
-
-		log.Printf("✅ Usuario actualizado exitosamente: %s (ID: %s)", nombre, personID)
-		http.Redirect(w, r, "/personas?msg=Usuario actualizado exitosamente&msg_type=success", http.StatusSeeOther)
-	}
-}
-
-// EliminarPersonaHandler handles deleting a person.
 func EliminarPersonaHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("DEBUG: Entrando a EliminarPersonaHandler")
+
+	// Verificar rol
 	rol := ""
-	if c, errCookie := r.Cookie("rol"); errCookie == nil { // Renombrado err a errCookie
+	if c, errCookie := r.Cookie("rol"); errCookie == nil {
 		rol = c.Value
 	}
+	log.Printf("Rol detectado: %s", rol)
 	if rol != "admin" {
-		http.Error(w, "Acceso denegado. Solo administradores pueden eliminar usuarios.", http.StatusForbidden)
+		http.Error(w, "Acceso denegado", http.StatusForbidden)
 		return
 	}
 
@@ -1009,23 +980,27 @@ func EliminarPersonaHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	personID := r.FormValue("id")
+	log.Printf("ID recibido para eliminar: %s", personID)
 	if personID == "" {
 		http.Error(w, "ID de persona no proporcionado", http.StatusBadRequest)
 		return
 	}
 
 	ctx := context.Background()
-	_, errInner := FirestoreClient.Collection("persona").Doc(personID).Delete(ctx) // Renombrado err a errInner
-	if errInner != nil {                                                           // Usar errInner
-		log.Printf("Error al eliminar persona %s de Firestore: %v", personID, errInner)
-		http.Error(w, "Error al eliminar persona: "+errInner.Error(), http.StatusInternalServerError)
+	_, err := FirestoreClient.Collection("persona").Doc(personID).Delete(ctx)
+	if err != nil {
+		log.Printf("🔥 Error al eliminar persona con ID %s: %v", personID, err)
+		http.Error(w, "Error al eliminar persona: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("✅ Persona eliminada exitosamente: (ID: %s)", personID)
+	log.Printf("✅ Persona eliminada correctamente: %s", personID)
+
 	if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Eliminado"))
 		return
 	}
+
 	http.Redirect(w, r, "/personas", http.StatusSeeOther)
 }
