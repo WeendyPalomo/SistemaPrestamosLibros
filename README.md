@@ -25,9 +25,18 @@ Este proyecto es un sistema web desarrollado en **Go (Golang)** que permite gest
 - **Frontend:** HTML + Bootstrap
 - **Routing y templates:** Go HTML templates
 - **Autenticación:** Cookies
-- **Pruebas:** K6 (estrés) + `testing` (unitarias)
+- **Pruebas:** K6 (estrés) + `testing handlers` (unitarias)
 
----
+## 🧑‍💻 Instalación y ejecución
 
-## 📁 Estructura del proyecto
+1. **Clona el proyecto**
+```bash
+git clone https://github.com/WeendyPalomo/SistemaPrestamosLibros.git
+cd SistemaPrestamosLibros
+
+2. **Ejecuta la aplicación**
+fresh
+
+3. **Accede desde tu navegador en:**
+👉 http://localhost:3000
 
