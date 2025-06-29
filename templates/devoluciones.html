@@ -1,4 +1,4 @@
-{{define "title"}}Devoluciones | Biblioteca PUCE{{end}}
+{{define "title"}}Devoluciones | Biblioteca PUCE{{end}}More actions
 
 {{define "content"}}
 <div class="container my-5">
@@ -23,6 +23,7 @@
                     <th scope="col">Libro</th>
                     <th scope="col">Autor</th>
                     <th scope="col">Fecha de Préstamo</th> <!-- ¡AGREGADO! -->
+
                     <th scope="col">Acciones</th>
                 </tr>
             </thead>
@@ -32,6 +33,7 @@
                     <td>{{inc $index}}</td>
                     <td>{{$devolucion.LibroNombre}}</td>
                     <td>{{$devolucion.AutorNombre}}</td>
+
                     <td>{{formatDate $devolucion.FechaPrestamo}}</td>
                     <td>
                         <button
@@ -83,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const confirmDevolucionModalElement = document.getElementById('confirmDevolucionModal');
     const confirmDevolucionModal = new bootstrap.Modal(confirmDevolucionModalElement);
     const confirmarDevolucionBtn = document.getElementById('confirmarDevolucionBtn');
-    
+
     let prestamoActual = ""; // Variable para almacenar el ID del préstamo actual
     let libroActual = "";    // Variable para almacenar el ID del libro actual
 
@@ -93,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const button = event.relatedTarget; 
         prestamoActual = button.dataset.prestamoid; // Asignar a la variable de ámbito superior
         libroActual = button.dataset.libroid;       // Asignar a la variable de ámbito superior
-        
+
         console.log('Modal de confirmación mostrando. PrestamoID del botón disparador:', prestamoActual, 'LibroID del botón disparador:', libroActual);
     });
 
@@ -123,29 +125,24 @@ document.addEventListener('DOMContentLoaded', function () {
             body: `prestamoID=${encodeURIComponent(prestamoIdToReturn)}&libroID=${encodeURIComponent(libroIdToUpdate)}`
         })
         
-    .then(response => {
+        .then(response => {
   return response.text().then(text => {
     const msgContainer = document.getElementById('devoluciones-message');
     if (response.ok) {
-      // 1️⃣ Cerrar el modal
-      confirmDevolucionModal.hide();
 
-      // 2️⃣ Asegurarnos de que se quiten clases y backdrops
-      document.body.classList.remove('modal-open');
-      document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-
-      // 3️⃣ Remover la fila de la tabla
+      // Remueve la fila en lugar de recargar…
       const btn = document.querySelector(`[data-prestamoid="${prestamoActual}"]`);
-      if (btn) btn.closest('tr').remove();
-
-      // 4️⃣ Mostrar mensaje de éxito integrado en la página
+      btn.closest('tr').remove();
       msgContainer.innerHTML = `
         <div class="alert alert-success alert-dismissible fade show" role="alert">
           Devolución registrada correctamente.
           <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>`;
+        confirmDevolucionModal.hide();
+        document.body.classList.remove('modal-open');
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        
     } else {
-      // Mismo proceso para el mensaje de error (sin cerrar el modal)
       msgContainer.innerHTML = `
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
           Error al procesar devolución: ${text}
@@ -162,7 +159,6 @@ document.addEventListener('DOMContentLoaded', function () {
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>`;
 });
-
 
     });
 });

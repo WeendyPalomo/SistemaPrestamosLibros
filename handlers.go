@@ -350,201 +350,177 @@ func EliminarLibroHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/libros", http.StatusSeeOther)
 }
 
-// DevolucionesHandler handles displaying the returns form and processing submissions.
 func DevolucionesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	usuarioNombre := ""
-	rol := ""
-	if c, errCookie := r.Cookie("usuario"); errCookie == nil { // Renombrado err a errCookie
+
+	// 1️⃣ Obtener usuario y rol desde cookies
+	usuarioNombre, rol := "", ""
+	if c, err := r.Cookie("usuario"); err == nil {
 		usuarioNombre = c.Value
 	}
-	if c, errCookie := r.Cookie("rol"); errCookie == nil { // Renombrado err a errCookie
+	if c, err := r.Cookie("rol"); err == nil {
 		rol = c.Value
 	}
 
-	// Obtener mensajes de la URL (si existen)
+	// 2️⃣ Mensajes de la URL
 	mensaje := r.URL.Query().Get("msg")
 	tipoMensaje := r.URL.Query().Get("msg_type")
 
+	// 3️⃣ GET: Mostrar la lista de préstamos activos
 	if r.Method == http.MethodGet {
-		var devolucionesData []DevolucionDisplayData
-
-		// Obtener el ID de la persona logueada
-		var loggedInPersonaID string
+		// Si no hay usuario logueado
 		if usuarioNombre == "" {
-			// Si no hay usuario logueado, no hay préstamos que mostrar
-			data := DatosPagina{
-				DevolucionesData: []DevolucionDisplayData{}, // Vacío
-				Año:              time.Now().Year(),
-				Usuario:          usuarioNombre,
-				Rol:              rol,
-				Mensaje:          "Debes iniciar sesión para ver tus préstamos.",
-				TipoMensaje:      "info",
-			}
-			renderTemplate(w, r, "devoluciones.html", data)
+			renderTemplate(w, r, "devoluciones.html", DatosPagina{
+				Usuario:     usuarioNombre,
+				Rol:         rol,
+				Mensaje:     "Debes iniciar sesión para ver tus préstamos.",
+				TipoMensaje: "info",
+			})
 			return
 		}
 
-		iterPersona := FirestoreClient.Collection("persona").Where("nombre", "==", usuarioNombre).Documents(ctx)
-		personaDoc, errInner := iterPersona.Next() // Usar := para declarar una nueva 'errInner' en el ámbito del bloque
-		if errInner != nil {
-			log.Printf("DEBUG Devoluciones: Error al buscar persona '%s' para devoluciones: %v", usuarioNombre, errInner)
-			data := DatosPagina{
-				DevolucionesData: []DevolucionDisplayData{}, // Corregido: Usar slice vacío del tipo correcto
-				Año:              time.Now().Year(),
-				Usuario:          usuarioNombre,
-				Rol:              rol,
-				Mensaje:          "No se encontró tu usuario en la base de datos.",
-				TipoMensaje:      "danger",
-			}
-			renderTemplate(w, r, "devoluciones.html", data)
-			return
-		}
-		loggedInPersonaID = personaDoc.Ref.ID
-		log.Printf("DEBUG Devoluciones: Usuario logueado: %s (ID: %s)", usuarioNombre, loggedInPersonaID)
-
-		// 1. Obtener todos los préstamos activos del usuario logueado
-		iterPrestamos := FirestoreClient.Collection("prestamos").
-			Where("activo", "==", true).
-			Where("personaID", "==", loggedInPersonaID). // Filtrar por el ID del usuario logueado
+		// Buscar el documento de la persona
+		iterPersona := FirestoreClient.Collection("persona").
+			Where("nombre", "==", usuarioNombre).
 			Documents(ctx)
-		log.Printf("DEBUG Devoluciones: Consultando préstamos activos para personaID: %s", loggedInPersonaID)
+		personaDoc, err := iterPersona.Next()
+		if err != nil {
+			renderTemplate(w, r, "devoluciones.html", DatosPagina{
+				Usuario:     usuarioNombre,
+				Rol:         rol,
+				Mensaje:     "No se encontró tu usuario.",
+				TipoMensaje: "danger",
+			})
+			return
+		}
+		// Extraer ID sin mapear toda la estructura Persona
+		personaID := personaDoc.Ref.ID
+
+		// Traer préstamos activos de esta persona
+		var devolucionesData []DevolucionDisplayData
+		iterPrest := FirestoreClient.Collection("prestamos").
+			Where("activo", "==", true).
+			Where("personaID", "==", personaID).
+			Documents(ctx)
 
 		for {
-			docPrestamo, errLoop := iterPrestamos.Next() // Usar := para declarar una nueva 'errLoop' en el ámbito del bucle
-			if errLoop == iterator.Done {
-				log.Println("DEBUG Devoluciones: No más préstamos activos para este usuario.")
+			doc, err := iterPrest.Next()
+			if err == iterator.Done {
 				break
 			}
-			if errLoop != nil {
-				log.Printf("Error al iterar préstamos activos: %v", errLoop)
+			if err != nil {
 				http.Error(w, "Error al cargar préstamos", http.StatusInternalServerError)
 				return
 			}
 
-			var prestamo Prestamo
-			if errLoop = docPrestamo.DataTo(&prestamo); errLoop != nil { // Usar = para asignar a la 'errLoop' del bucle
-				log.Printf("DEBUG Devoluciones: Error al mapear datos de préstamo %s: %v", docPrestamo.Ref.ID, errLoop)
+			// Mapear el préstamo
+			var p Prestamo
+			if err := doc.DataTo(&p); err != nil {
 				continue
 			}
-			prestamo.ID = docPrestamo.Ref.ID
-			log.Printf("DEBUG Devoluciones: Préstamo encontrado: ID %s, LibroID %s, PersonaID %s", prestamo.ID, prestamo.LibroID, prestamo.PersonaID)
+			p.ID = doc.Ref.ID
 
-			// 2. Obtener los detalles del libro asociado al préstamo
-			libroDoc, errLoop := FirestoreClient.Collection("libro").Doc(prestamo.LibroID).Get(ctx) // Usar := para declarar una nueva 'errLoop' en el ámbito del bucle
-			if errLoop != nil {
-				log.Printf("DEBUG Devoluciones: Error al obtener libro (ID: %s) para préstamo %s: %v", prestamo.LibroID, prestamo.ID, errLoop)
-				// Si el libro no se encuentra, podemos saltar este préstamo o mostrar un error
+			// Obtener los datos del libro asociado
+			libDoc, err := FirestoreClient.Collection("libro").Doc(p.LibroID).Get(ctx)
+			if err != nil {
 				continue
 			}
 			var libro Libro
-			if errLoop = libroDoc.DataTo(&libro); errLoop != nil { // Usar = para asignar a la 'errLoop' del bucle
-				log.Printf("DEBUG Devoluciones: Error al mapear datos de libro para préstamo %s: %v", prestamo.ID, errLoop)
+			if err := libDoc.DataTo(&libro); err != nil {
 				continue
 			}
-			libro.ID = libroDoc.Ref.ID // <--- ¡AQUÍ ESTÁ LA CORRECCIÓN CLAVE! Asignar el ID del documento del libro.
-			log.Printf("DEBUG Devoluciones: Detalles del libro obtenidos: Nombre '%s', Autor '%s', ID '%s'", libro.Nombre, libro.Autor, libro.ID)
+			libro.ID = libDoc.Ref.ID
 
-			// 3. Obtener los detalles de la persona asociada al préstamo
-			personaDoc, errLoop := FirestoreClient.Collection("persona").Doc(prestamo.PersonaID).Get(ctx) // Usar := para declarar una nueva 'errLoop' en el ámbito del bucle
-			if errLoop != nil {
-				log.Printf("DEBUG Devoluciones: Error al obtener persona (ID: %s) para préstamo %s: %v", prestamo.PersonaID, prestamo.ID, errLoop)
-				continue
-			}
-			var persona Persona
-			if errLoop = personaDoc.DataTo(&persona); errLoop != nil { // Usar = para asignar a la 'errLoop' del bucle
-				log.Printf("DEBUG Devoluciones: Error al mapear datos de persona para préstamo %s: %v", prestamo.ID, errLoop)
-				continue
-			}
-			persona.ID = personaDoc.Ref.ID // Asignar el ID de la persona también, por si acaso
-			log.Printf("DEBUG Devoluciones: Detalles de la persona obtenidos: Nombre '%s', ID '%s'", persona.Nombre, persona.ID)
-
-			// 4. Construir el objeto para mostrar en la plantilla
+			// Añadir a la lista de datos para la vista
 			devolucionesData = append(devolucionesData, DevolucionDisplayData{
-				PrestamoID:    prestamo.ID,
-				LibroID:       libro.ID, // Ahora libro.ID debería tener un valor
+				PrestamoID:    p.ID,
+				LibroID:       libro.ID,
 				LibroNombre:   libro.Nombre,
 				AutorNombre:   libro.Autor,
-				UsuarioID:     persona.ID,
-				UsuarioNombre: persona.Nombre,
-				FechaPrestamo: prestamo.FechaPrestamo,
-				Activo:        prestamo.Activo,
+				FechaPrestamo: p.FechaPrestamo,
 			})
-			log.Printf("DEBUG Devoluciones: Añadido préstamo a la lista de visualización: %s (LibroID: %s)", libro.Nombre, libro.ID)
 		}
 
-		data := DatosPagina{
+		// Renderizar plantilla con datos
+		renderTemplate(w, r, "devoluciones.html", DatosPagina{
 			DevolucionesData: devolucionesData,
-			Año:              time.Now().Year(),
-			Usuario:          usuarioNombre, // Usar usuarioNombre para el display
+			Usuario:          usuarioNombre,
 			Rol:              rol,
 			Mensaje:          mensaje,
 			TipoMensaje:      tipoMensaje,
-		}
-		renderTemplate(w, r, "devoluciones.html", data)
+		})
 		return
 	}
 
+	// 4️⃣ POST: Procesar la devolución
 	if r.Method == http.MethodPost {
-		log.Println("DEBUG: Entrando al método POST /devoluciones")
 		prestamoID := r.FormValue("prestamoID")
 		libroID := r.FormValue("libroID")
 
+		// Validar que vengan ambos IDs
 		if prestamoID == "" || libroID == "" {
-			// ... manejo de error ...
+			if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+				http.Error(w, "ID faltante", http.StatusBadRequest)
+				return
+			}
+			http.Redirect(w, r, "/devoluciones?msg=ID faltante&msg_type=danger", http.StatusSeeOther)
+			return
 		}
 
-		err := FirestoreClient.RunTransaction(ctx, func(ctx_tx context.Context, tx *firestore.Transaction) error {
-			// --- 1. Leer ambos documentos ANTES de escribir ---
-			prestamoRef := FirestoreClient.Collection("prestamos").Doc(prestamoID)
-			prestamoDoc, errTx := tx.Get(prestamoRef)
-			if errTx != nil {
-				return errTx
+		// Transacción: borrar préstamo y aumentar copias del libro
+		err := FirestoreClient.RunTransaction(ctx, func(ctxTx context.Context, tx *firestore.Transaction) error {
+			// Leer préstamo
+			prestRef := FirestoreClient.Collection("prestamos").Doc(prestamoID)
+			prestDoc, err := tx.Get(prestRef)
+			if err != nil {
+				return err
 			}
-			var prestamo Prestamo
-			if errTx = prestamoDoc.DataTo(&prestamo); errTx != nil {
-				return errTx
-			}
-
-			libroRef := FirestoreClient.Collection("libro").Doc(libroID)
-			libroDoc, errTx := tx.Get(libroRef)
-			if errTx != nil {
-				return errTx
-			}
-			var libro Libro
-			if errTx = libroDoc.DataTo(&libro); errTx != nil {
-				return errTx
+			var prest Prestamo
+			if err := prestDoc.DataTo(&prest); err != nil {
+				return err
 			}
 
-			// --- 2. Ahora hacer las escrituras que dependan de esos datos ---
-			// Eliminar el préstamo
-			tx.Delete(prestamoRef)
-			// Calcular nuevas copias
-			nuevasCopias := libro.Copias + 1
-			updates := []firestore.Update{{Path: "copias", Value: nuevasCopias}}
-			if !libro.Disponible && nuevasCopias > 0 {
+			// Leer libro
+			libRef := FirestoreClient.Collection("libro").Doc(libroID)
+			libDoc, err := tx.Get(libRef)
+			if err != nil {
+				return err
+			}
+			var lib Libro
+			if err := libDoc.DataTo(&lib); err != nil {
+				return err
+			}
+
+			// Eliminar documento de préstamo
+			tx.Delete(prestRef)
+
+			// Actualizar las copias del libro
+			nuevasCopias := lib.Copias + 1
+			updates := []firestore.Update{
+				{Path: "copias", Value: nuevasCopias},
+			}
+			// Si antes no estaba disponible y ahora sí, marcarlo
+			if !lib.Disponible && nuevasCopias > 0 {
 				updates = append(updates,
 					firestore.Update{Path: "disponible", Value: true},
 					firestore.Update{Path: "prestadoPorID", Value: ""},
 				)
 			}
-			tx.Update(libroRef, updates)
+			tx.Update(libRef, updates)
 
 			return nil
 		})
 
+		// Manejo de respuesta
 		if err != nil {
-			log.Printf("🔥 ERROR transacción devolución: %v", err)
 			if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte("Error al procesar devolución"))
+				http.Error(w, "Error al procesar devolución", http.StatusInternalServerError)
 				return
 			}
-			http.Redirect(w, r, "/devoluciones?msg=Error al procesar devolución&msg_type=danger", http.StatusSeeOther)
+			http.Redirect(w, r, "/devoluciones?msg=Error&msg_type=danger", http.StatusSeeOther)
 			return
 		}
 
-		// Transacción OK
 		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
 			w.WriteHeader(http.StatusOK)
 			return
