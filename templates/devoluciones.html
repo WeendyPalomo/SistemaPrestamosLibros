@@ -5,7 +5,8 @@
     <h2 class="mb-4 text-center">🔄 Gestión de Devoluciones</h2>
     <p class="lead text-center mb-3">Aquí puedes ver los libros actualmente prestados y registrar su devolución.</p>
 
-    {{/* Mensajes de éxito o error */}}
+    <div id="devoluciones-message"></div>
+
     {{if .Mensaje}}
     <div class="alert alert-{{.TipoMensaje}} alert-dismissible fade show" role="alert">
         {{.Mensaje}}
@@ -21,8 +22,7 @@
                     <th scope="col">#</th>
                     <th scope="col">Libro</th>
                     <th scope="col">Autor</th>
-                    <th scope="col">Prestado Por</th>
-                    <th scope="col">Fecha Préstamo</th>
+                    <th scope="col">Fecha de Préstamo</th> <!-- ¡AGREGADO! -->
                     <th scope="col">Acciones</th>
                 </tr>
             </thead>
@@ -32,7 +32,6 @@
                     <td>{{inc $index}}</td>
                     <td>{{$devolucion.LibroNombre}}</td>
                     <td>{{$devolucion.AutorNombre}}</td>
-                    <td>{{$devolucion.UsuarioNombre}}</td>
                     <td>{{formatDate $devolucion.FechaPrestamo}}</td>
                     <td>
                         <button
@@ -123,27 +122,38 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             body: `prestamoID=${encodeURIComponent(prestamoIdToReturn)}&libroID=${encodeURIComponent(libroIdToUpdate)}`
         })
+        
         .then(response => {
-            console.log('Respuesta del servidor recibida. Status:', response.status); // Debug: Respuesta recibida
-            if (response.ok) {
-                console.log('Devolución exitosa. Recargando página...'); // Debug: Devolución exitosa
-                confirmDevolucionModal.hide(); // Ocultar el modal
-                window.location.reload(); // Recarga simple para ver los cambios
-            } else {
-                // Manejar errores, por ejemplo, mostrar un mensaje al usuario
-                response.text().then(text => {
-                    console.error('Error al registrar la devolución:', text); // Debug: Error del servidor
-                    alert('Error al registrar la devolución: ' + text); // Usar un modal personalizado en un entorno real
-                }).catch(e => {
-                    console.error('Error al leer la respuesta de error:', e); // Debug: Error al leer respuesta
-                    alert('Error desconocido al registrar la devolución.');
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error en la comunicación con el servidor:', error); // Debug: Error de red
-            alert('Error de red al intentar registrar la devolución.'); // Usar un modal personalizado en un entorno real
-        });
+  return response.text().then(text => {
+    const msgContainer = document.getElementById('devoluciones-message');
+    if (response.ok) {
+      confirmDevolucionModal.hide();
+      // Remueve la fila en lugar de recargar…
+      const btn = document.querySelector(`[data-prestamoid="${prestamoActual}"]`);
+      btn.closest('tr').remove();
+      msgContainer.innerHTML = `
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          Devolución registrada correctamente.
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`;
+    } else {
+      msgContainer.innerHTML = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          Error al procesar devolución: ${text}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`;
+    }
+  });
+})
+.catch(() => {
+  const msgContainer = document.getElementById('devoluciones-message');
+  msgContainer.innerHTML = `
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+      Error de red al intentar la devolución.
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>`;
+});
+
     });
 });
 </script>

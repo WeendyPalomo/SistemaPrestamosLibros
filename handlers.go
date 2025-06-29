@@ -486,90 +486,70 @@ func DevolucionesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPost {
-		// Lógica para procesar la devolución (se implementará en el siguiente paso)
+		log.Println("DEBUG: Entrando al método POST /devoluciones")
 		prestamoID := r.FormValue("prestamoID")
-		libroID := r.FormValue("libroID") // Necesario para actualizar las copias del libro
-
-		log.Printf("DEBUG Devoluciones POST: Recibida solicitud de devolución para PrestamoID: %s, LibroID: %s", prestamoID, libroID)
+		libroID := r.FormValue("libroID")
 
 		if prestamoID == "" || libroID == "" {
-			log.Println("DEBUG Devoluciones POST: ID de préstamo o libro no proporcionado.")
-			http.Redirect(w, r, "/devoluciones?msg=ID de préstamo o libro no proporcionado&msg_type=danger", http.StatusBadRequest)
-			return
+			// ... manejo de error ...
 		}
 
 		err := FirestoreClient.RunTransaction(ctx, func(ctx_tx context.Context, tx *firestore.Transaction) error {
-			// 1. Obtener el préstamo
+			// --- 1. Leer ambos documentos ANTES de escribir ---
 			prestamoRef := FirestoreClient.Collection("prestamos").Doc(prestamoID)
-			prestamoDoc, errTx := tx.Get(prestamoRef) // Renombrado err a errTx
+			prestamoDoc, errTx := tx.Get(prestamoRef)
 			if errTx != nil {
-				log.Printf("DEBUG Devoluciones POST: Error al obtener préstamo %s: %v", prestamoID, errTx)
-				return errTx // Préstamo no encontrado o error de Firestore
+				return errTx
 			}
 			var prestamo Prestamo
-			if errTx = prestamoDoc.DataTo(&prestamo); errTx != nil { // Renombrado err a errTx
-				log.Printf("DEBUG Devoluciones POST: Error al mapear datos de préstamo %s: %v", prestamoID, errTx)
-				return errTx // Error al mapear datos del préstamo
+			if errTx = prestamoDoc.DataTo(&prestamo); errTx != nil {
+				return errTx
 			}
-			if !prestamo.Activo {
-				log.Printf("DEBUG Devoluciones POST: Préstamo %s ya ha sido devuelto.", prestamoID)
-				return &http.ProtocolError{ErrorString: "Este préstamo ya ha sido devuelto."}
-			}
-			log.Printf("DEBUG Devoluciones POST: Préstamo %s encontrado y activo.", prestamoID)
 
-			// 2. Actualizar el préstamo: marcar como inactivo y registrar fecha de devolución
-			updatesPrestamo := []firestore.Update{
-				{Path: "activo", Value: false},
-				{Path: "fechaDevolucion", Value: time.Now()},
-			}
-			tx.Update(prestamoRef, updatesPrestamo)
-			log.Printf("DEBUG Devoluciones POST: Préstamo %s actualizado a inactivo.", prestamoID)
-
-			// 3. Obtener el libro para actualizar las copias
 			libroRef := FirestoreClient.Collection("libro").Doc(libroID)
-			libroDoc, errTx := tx.Get(libroRef) // Renombrado err a errTx
+			libroDoc, errTx := tx.Get(libroRef)
 			if errTx != nil {
-				log.Printf("DEBUG Prestamo POST: Error al obtener libro %s: %v", libroID, errTx)
-				return errTx // Libro no encontrado o error de Firestore
+				return errTx
 			}
 			var libro Libro
-			if errTx = libroDoc.DataTo(&libro); errTx != nil { // Renombrado err a errTx
-				log.Printf("DEBUG Prestamo POST: Error al mapear datos de libro %s: %v", libroID, errTx)
-				return errTx // Error al mapear datos del libro
+			if errTx = libroDoc.DataTo(&libro); errTx != nil {
+				return errTx
 			}
-			log.Printf("DEBUG Prestamo POST: Libro %s encontrado. Copias actuales: %d", libroID, libro.Copias)
 
-			// 4. Actualizar el libro: incrementar copias y marcar como disponible si es necesario
+			// --- 2. Ahora hacer las escrituras que dependan de esos datos ---
+			// Eliminar el préstamo
+			tx.Delete(prestamoRef)
+			// Calcular nuevas copias
 			nuevasCopias := libro.Copias + 1
-			updatesLibro := []firestore.Update{
-				{Path: "copias", Value: nuevasCopias},
-			}
-			// Si el libro estaba no disponible y ahora tiene copias, marcarlo como disponible
+			updates := []firestore.Update{{Path: "copias", Value: nuevasCopias}}
 			if !libro.Disponible && nuevasCopias > 0 {
-				updatesLibro = append(updatesLibro, firestore.Update{Path: "disponible", Value: true})
-				updatesLibro = append(updatesLibro, firestore.Update{Path: "prestadoPorID", Value: ""}) // Limpiar quien lo tiene prestado
-				log.Printf("DEBUG Prestamo POST: Libro %s marcado como disponible y prestadoPorID limpiado.", libroID)
+				updates = append(updates,
+					firestore.Update{Path: "disponible", Value: true},
+					firestore.Update{Path: "prestadoPorID", Value: ""},
+				)
 			}
-			tx.Update(libroRef, updatesLibro)
-			log.Printf("DEBUG Prestamo POST: Libro %s copias actualizadas a %d.", libroID, nuevasCopias)
+			tx.Update(libroRef, updates)
 
-			return nil // Transacción exitosa
+			return nil
 		})
 
 		if err != nil {
-			log.Printf("Error en transacción de devolución: %v", err)
-			if protoErr, ok := err.(*http.ProtocolError); ok {
-				log.Printf("DEBUG Devoluciones POST: Error de protocolo detectado: %s", protoErr.ErrorString)
-				http.Redirect(w, r, "/devoluciones?msg="+url.QueryEscape(protoErr.ErrorString)+"&msg_type=danger", http.StatusSeeOther)
+			log.Printf("🔥 ERROR transacción devolución: %v", err)
+			if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Error al procesar devolución"))
 				return
 			}
-			http.Redirect(w, r, "/devoluciones?msg=Error al registrar la devolución&msg_type=danger", http.StatusSeeOther)
+			http.Redirect(w, r, "/devoluciones?msg=Error al procesar devolución&msg_type=danger", http.StatusSeeOther)
 			return
 		}
 
-		log.Printf("✅ Devolución registrada exitosamente para préstamo ID: %s", prestamoID)
-		http.Redirect(w, r, "/devoluciones?msg=Devolución registrada exitosamente&msg_type=success", http.StatusSeeOther)
-		return
+		// Transacción OK
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.Redirect(w, r, "/devoluciones?msg=Devolución exitosa&msg_type=success", http.StatusSeeOther)
 	}
 }
 
@@ -589,16 +569,6 @@ func RegistrarHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Todos los campos son obligatorios", http.StatusBadRequest)
 		return
 	}
-
-	// Se mantiene la conversión a int aquí porque el campo 'Ano' de Persona en Firestore
-	// se cambió a string, pero el campo 'ano' en el formulario de registro
-	// (y el mapeo original) podría haber sido int.
-	// Asumiendo que 'ano' en Firestore para Persona es string, se corrige:
-	// ano, err := strconv.Atoi(anoStr) // Esta línea se eliminaría si Ano es string en Firestore
-	// if err != nil {
-	// 	http.Error(w, "Año de nacimiento inválido", http.StatusBadRequest)
-	// 	return
-	// }
 
 	ctx := context.Background()
 	// Verificar si el usuario ya existe por cédula o nombre (opcional)
@@ -1000,13 +970,6 @@ func EditarPersonaHandler(w http.ResponseWriter, r *http.Request) {
 		cedula := r.FormValue("cedula")
 		anoStr := r.FormValue("ano")
 		rol := r.FormValue("rol") // Permitir editar el rol
-
-		// No es necesario convertir anoStr a int si Persona.Ano es string
-		// ano, err := strconv.Atoi(anoStr)
-		// if err != nil {
-		// 	http.Redirect(w, r, "/personas?msg=Año de nacimiento inválido&msg_type=danger", http.StatusSeeOther)
-		// 	return
-		// }
 
 		updates := []firestore.Update{
 			{Path: "nombre", Value: nombre},
