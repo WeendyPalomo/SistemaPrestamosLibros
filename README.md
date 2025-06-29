@@ -29,13 +29,18 @@ Este proyecto es un sistema web desarrollado en **Go (Golang)** que permite gest
 
 ## 🧑‍💻 Instalación y ejecución
 
+## 🧑‍💻 Instalación y ejecución
+
 1. **Clona el proyecto**
 ```bash
 git clone https://github.com/WeendyPalomo/SistemaPrestamosLibros.git
-cd SistemaPrestamosLibros```
+cd SistemaPrestamosLibros
+```
 
-2. **Ejecuta la aplicación**
-```fresh```
+3. **Ejecuta la aplicación**
+```bash
+fresh
+```
 
 3. **Accede desde tu navegador en:**
 👉 http://localhost:3000
