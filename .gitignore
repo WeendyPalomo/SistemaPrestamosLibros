@@ -26,6 +26,6 @@ Thumbs.db
 
 # Archivos de credenciales y configuraciones sensibles
 *.json
-basebiblioteca-fe7d5-firebase-adminsdk-fbsvc-fa72da49bb.json
+
 # Ignorar carpeta tmp
 /tmp/

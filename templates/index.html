@@ -11,19 +11,69 @@
 
 <div class="container my-5">
     <div class="row justify-content-center">
-        <div class="col-md-9 text-center">
+        <div class="col-md-10 text-center">
             <h2 class="mb-4">Bienvenido a la Biblioteca PUCE</h2>
             <p class="lead">Explora nuestra vasta colección de libros y registra tus préstamos de manera sencilla y rápida.</p>
-            <p>Inicia sesion para acceder a las diferentes secciones:</p>
-            <ul class="list-unstyled text-start d-inline-block mt-4">
-                <li><i class="fas fa-book me-2 text-primary"></i> **Libros:** Explora todos los títulos disponibles en nuestra biblioteca.</li>
-                <li><i class="fas fa-handshake me-2 text-success"></i> **Préstamos:** Registra un nuevo préstamo de un libro.</li>
-                <li><i class="fas fa-undo-alt"></i> **Devolucion Libro:** Devuelve libros a la colección.</li>
+            <p class="mb-5">Inicia sesión para acceder a las diferentes secciones:</p>
+
+            <div class="row g-4 justify-content-center">
+                <!-- Tarjeta de Libros -->
+                <div class="col-sm-6 col-md-4 col-lg-3">
+                    <a href="/libros" class="card h-100 shadow-sm border-primary text-decoration-none text-dark hover-scale">
+                        <div class="card-body text-center p-4">
+                            <i class="fas fa-book fa-3x text-primary mb-3"></i>
+                            <h5 class="card-title fw-bold">Libros</h5>
+                            <p class="card-text text-muted">Explora todos los títulos disponibles en nuestra biblioteca.</p>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Tarjeta de Préstamos -->
+                <div class="col-sm-6 col-md-4 col-lg-3">
+                    <a href="{{if .Usuario}}/prestamos{{else}}/login{{end}}" class="card h-100 shadow-sm border-success text-decoration-none text-dark hover-scale">
+                        <div class="card-body text-center p-4">
+                            <i class="fas fa-handshake fa-3x text-success mb-3"></i>
+                            <h5 class="card-title fw-bold">Préstamos</h5>
+                            <p class="card-text text-muted">Registra un nuevo préstamo de un libro.</p>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Tarjeta de Devolución Libro -->
+                <div class="col-sm-6 col-md-4 col-lg-3">
+                    <a href="{{if .Usuario}}/devoluciones{{else}}/login{{end}}" class="card h-100 shadow-sm border-info text-decoration-none text-dark hover-scale">
+                        <div class="card-body text-center p-4">
+                            <i class="fas fa-undo-alt fa-3x text-info mb-3"></i>
+                            <h5 class="card-title fw-bold">Devolución Libro</h5>
+                            <p class="card-text text-muted">Devuelve libros a la colección.</p>
+                        </div>
+                    </a>
+                </div>
+
                 {{if eq .Rol "admin"}}
-                <li><i class="fas fa-users me-2 text-info"></i> **Usuarios:** Gestiona los usuarios registrados en el sistema.</li>
-                <li><i class="fas fa-plus-square me-2 text-warning"></i> **Registrar Libro:** Añade nuevos libros a la colección.</li>
+                <!-- Tarjeta de Usuarios (Solo Admin) -->
+                <div class="col-sm-6 col-md-4 col-lg-3">
+                    <a href="/personas" class="card h-100 shadow-sm border-warning text-decoration-none text-dark hover-scale">
+                        <div class="card-body text-center p-4">
+                            <i class="fas fa-users fa-3x text-warning mb-3"></i>
+                            <h5 class="card-title fw-bold">Usuarios</h5>
+                            <p class="card-text text-muted">Gestiona los usuarios registrados en el sistema.</p>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Tarjeta de Registrar Libro (Solo Admin) -->
+                <div class="col-sm-6 col-md-4 col-lg-3">
+                    <a href="/registrar-libro" class="card h-100 shadow-sm border-danger text-decoration-none text-dark hover-scale">
+                        <div class="card-body text-center p-4">
+                            <i class="fas fa-plus-square fa-3x text-danger mb-3"></i>
+                            <h5 class="card-title fw-bold">Registrar Libro</h5>
+                            <p class="card-text text-muted">Añade nuevos libros a la colección.</p>
+                        </div>
+                    </a>
+                </div>
                 {{end}}
-            </ul>
+            </div>
         </div>
     </div>
 </div>
@@ -42,4 +92,49 @@
     </div>
 </div>
 {{end}}
+
+<style>
+    /* Estilos adicionales para las tarjetas */
+    .card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        border-radius: 15px; /* Bordes más redondeados */
+        overflow: hidden; /* Asegura que el contenido no se salga de los bordes redondeados */
+    }
+
+    .card:hover {
+        transform: translateY(-5px); /* Pequeño efecto de elevación al pasar el ratón */
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15); /* Sombra más pronunciada */
+    }
+
+    /* Colores de borde personalizados para las tarjetas */
+    .border-primary { border-color: #007bff !important; }
+    .border-success { border-color: #28a745 !important; }
+    .border-info { border-color: #17a2b8 !important; }
+    .border-warning { border-color: #ffc107 !important; }
+    .border-danger { border-color: #dc3545 !important; }
+
+    /* Estilo para los íconos dentro de las tarjetas */
+    .card-body i {
+        color: #6c757d; /* Color por defecto para los íconos */
+    }
+
+    /* Asegura que los enlaces dentro de las tarjetas no tengan subrayado */
+    .text-decoration-none {
+        text-decoration: none !important;
+    }
+
+    /* Asegura que el texto dentro de las tarjetas sea oscuro */
+    .text-dark {
+        color: #343a40 !important;
+    }
+
+    /* Clase para efecto de escala al pasar el ratón */
+    .hover-scale {
+        transition: transform 0.3s ease;
+    }
+
+    .hover-scale:hover {
+        transform: scale(1.03); /* Ligeramente más grande al pasar el ratón */
+    }
+</style>
 {{end}}
