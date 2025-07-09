@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	firebase "firebase.google.com/go/v4"
 	"cloud.google.com/go/firestore"
+	firebase "firebase.google.com/go/v4"
 	"google.golang.org/api/option"
 )
 
@@ -15,11 +15,11 @@ func InitFirebase() {
 	ctx := context.Background()
 
 	// Ruta al archivo de credenciales JSON
-	sa := option.WithCredentialsFile("basebiblioteca-fe7d5-firebase-adminsdk-fbsvc-fa72da49bb.json")
+	sa := option.WithCredentialsFile("prestamolibros-556f1-firebase-adminsdk-fbsvc-1bc548a5b5.json")
 
 	// Configuración explícita con el project ID
 	config := &firebase.Config{
-		ProjectID: "basebiblioteca-fe7d5",
+		ProjectID: "prestamolibros-556f1",
 	}
 
 	// Inicializar la app con configuración y credenciales
